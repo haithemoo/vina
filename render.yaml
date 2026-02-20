@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: vina
+    env: node
+    region: frankfurt
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        value: ""
+        generateValue: false
+      - key: JWT_SECRET
+        value: ""
+        generateValue: false
+      - key: APP_URL
+        value: ""
+        generateValue: false
+
