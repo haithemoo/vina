@@ -16,6 +16,9 @@ services:
       - key: JWT_SECRET
         value: ""
         generateValue: false
+      - key: OAUTH_SERVER_URL
+        value: ""
+        generateValue: false
       - key: APP_URL
         value: ""
         generateValue: false
