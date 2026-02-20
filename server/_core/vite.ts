@@ -2,39 +2,7 @@ import express, { type Express } from "express";
 import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
-import path from "path";
-import { createServer as createViteServer } from "vite";
-import viteConfig from "../../vite.config";
-
-export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true as const,
-  };
-
-  const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
-    server: serverOptions,
-    appType: "custom",
-  });
-
-  app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-
-    try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "../..",
-        "client",
-        "index.html"
-      );
-
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
+Error: ENOENT: no such file or directory, stat '/opt/render/project/dist/public/index.html'
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
       );
@@ -53,9 +21,20 @@ export function serveStatic(app: Express) {
   const projectRoot = path.resolve(import.meta.dirname, "../..");
   const distPath = path.join(projectRoot, "dist", "public");
   
-  console.log(`[serveStatic] Looking for static files at: ${distPath}`);
+  // List what's in the project root for debugging
   console.log(`[serveStatic] Project root: ${projectRoot}`);
-  console.log(`[serveStatic] Exists: ${fs.existsSync(distPath)}`);
+  console.log(`[serveStatic] Looking for static files at: ${distPath}`);
+  console.log(`[serveStatic] distPath exists: ${fs.existsSync(distPath)}`);
+  
+  // Check what's in the dist folder
+  if (fs.existsSync(projectRoot)) {
+    const distRoot = path.join(projectRoot, "dist");
+    if (fs.existsSync(distRoot)) {
+      console.log(`[serveStatic] Contents of dist/:`, fs.readdirSync(distRoot));
+    } else {
+      console.log(`[serveStatic] No dist/ folder at project root`);
+    }
+  }
   
   if (!fs.existsSync(distPath)) {
     console.error(
@@ -67,6 +46,8 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    console.log(`[serveStatic] Sending index.html from: ${indexPath}`);
+    res.sendFile(indexPath);
   });
 }
