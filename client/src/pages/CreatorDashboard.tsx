@@ -154,27 +154,27 @@ export default function CreatorDashboard() {
 
           {/* Creator Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-lg p-4">
+            <div className="bg-gradient-to-br from-[#b4aa9b]/20 to-[#b4aa9b]/10 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">Produits</p>
-              <p className="text-3xl font-bold text-violet-600">
+              <p className="text-3xl font-bold text-[#8c8070]">
                 {products.length}
               </p>
             </div>
-            <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-4">
+            <div className="bg-gradient-to-br from-[#b4aa9b]/20 to-[#b4aa9b]/10 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">Ventes totales</p>
-              <p className="text-3xl font-bold text-cyan-600">
+              <p className="text-3xl font-bold text-[#8c8070]">
                 {creator.totalSales}
               </p>
             </div>
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg p-4">
+            <div className="bg-gradient-to-br from-[#b4aa9b]/20 to-[#b4aa9b]/10 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">Revenus</p>
-              <p className="text-3xl font-bold text-pink-600">
+              <p className="text-3xl font-bold text-[#8c8070]">
                 ${creator.totalEarnings}
               </p>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+            <div className="bg-gradient-to-br from-[#b4aa9b]/20 to-[#b4aa9b]/10 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">Statut</p>
-              <p className="text-lg font-bold text-green-600">
+              <p className="text-lg font-bold text-[#8c8070]">
                 {creator.isVerified ? "✓ Vérifié" : "En attente"}
               </p>
             </div>
@@ -229,7 +229,7 @@ export default function CreatorDashboard() {
                           category: e.target.value as any,
                         })
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8c8070]"
                     >
                       <option value="shirts">T-shirts & Chemises</option>
                       <option value="pants">Pantalons</option>
@@ -250,7 +250,7 @@ export default function CreatorDashboard() {
                       setFormData({ ...formData, description: e.target.value })
                     }
                     placeholder="Décrivez votre produit..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8c8070]"
                     rows={3}
                   />
                 </div>
@@ -390,7 +390,7 @@ export default function CreatorDashboard() {
                     {product.category}
                   </p>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-bold text-violet-600">
+                    <span className="text-lg font-bold text-[#8c8070]">
                       ${product.price}
                     </span>
                     <span className="text-xs text-gray-500">

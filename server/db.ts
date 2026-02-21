@@ -111,7 +111,7 @@ export async function createUser(userData: {
     return undefined;
   }
 
-  const result = await db.insert(users).values({
+  await db.insert(users).values({
     openId: userData.openId,
     email: userData.email.toLowerCase(),
     name: userData.name,
@@ -119,7 +119,10 @@ export async function createUser(userData: {
     loginMethod: userData.loginMethod,
     role: "user",
   });
-  return result;
+
+  // Fetch and return the created user
+  const created = await db.select().from(users).where(eq(users.openId, userData.openId)).limit(1);
+  return created.length > 0 ? created[0] : undefined;
 }
 
 // Products queries

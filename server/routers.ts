@@ -1,5 +1,6 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
@@ -20,7 +21,7 @@ export const appRouter = router({
         email: z.string().email("Email invalide"),
         password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const user = await db.getUserByEmail(input.email);
         if (!user) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Email ou mot de passe incorrect" });
@@ -36,6 +37,11 @@ export const appRouter = router({
         if (!isValid) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Email ou mot de passe incorrect" });
         }
+
+        // Create session token and set cookie
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || "" });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
         
         return {
           id: user.id,
@@ -51,7 +57,7 @@ export const appRouter = router({
         password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
         name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         // Check if user already exists
         const existing = await db.getUserByEmail(input.email);
         if (existing) {
@@ -71,6 +77,15 @@ export const appRouter = router({
           passwordHash,
           loginMethod: "email",
         });
+
+        if (!user) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erreur lors de la création du compte" });
+        }
+
+        // Create session token and set cookie
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || "" });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
         
         return {
           id: user.id,
@@ -112,7 +127,7 @@ export const appRouter = router({
 
     getByCategory: publicProcedure
       .input(z.object({
-        category: z.enum(["shirts", "pants", "accessories", "shoes", "other"]),
+        category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]),
         limit: z.number().default(20),
         offset: z.number().default(0),
       }))
@@ -152,7 +167,7 @@ export const appRouter = router({
       .input(z.object({
         name: z.string(),
         description: z.string().optional(),
-        category: z.enum(["shirts", "pants", "accessories", "shoes", "other"]),
+        category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]),
         price: z.string(),
         previewImageUrl: z.string(),
         fileUrl: z.string(),
@@ -188,7 +203,7 @@ export const appRouter = router({
         id: z.number(),
         name: z.string().optional(),
         description: z.string().optional(),
-        category: z.enum(["shirts", "pants", "accessories", "shoes", "other"]).optional(),
+        category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]).optional(),
         price: z.string().optional(),
         previewImageUrl: z.string().optional(),
         fileUrl: z.string().optional(),

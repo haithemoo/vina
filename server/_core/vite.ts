@@ -1,15 +1,29 @@
 import express, { type Express } from "express";
 import fs from "fs";
+import path from "path";
 import { type Server } from "http";
-import { nanoid } from "nanoid";
-Error: ENOENT: no such file or directory, stat '/opt/render/project/dist/public/index.html'
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
+
+export async function setupVite(app: Express, server: Server) {
+  const vite = await import("vite");
+  const viteServer = await vite.createServer({
+    server: { middlewareMode: true },
+    appType: "custom",
+  });
+
+  app.use(viteServer.middlewares);
+
+  app.use("*", async (req, res, next) => {
+    if (req.method !== "GET") return next();
+    const url = req.originalUrl;
+    try {
+      const template = await viteServer.transformIndexHtml(
+        url,
+        fs.readFileSync(path.resolve("client/index.html"), "utf-8")
       );
-      const page = await vite.transformIndexHtml(url, template);
+      const page = await viteServer.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
+      viteServer.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
@@ -20,12 +34,12 @@ export function serveStatic(app: Express) {
   // Since this file is at server/_core/vite.ts, we need to go up 2 levels
   const projectRoot = path.resolve(import.meta.dirname, "../..");
   const distPath = path.join(projectRoot, "dist", "public");
-  
+
   // List what's in the project root for debugging
   console.log(`[serveStatic] Project root: ${projectRoot}`);
   console.log(`[serveStatic] Looking for static files at: ${distPath}`);
   console.log(`[serveStatic] distPath exists: ${fs.existsSync(distPath)}`);
-  
+
   // Check what's in the dist folder
   if (fs.existsSync(projectRoot)) {
     const distRoot = path.join(projectRoot, "dist");
@@ -35,7 +49,7 @@ export function serveStatic(app: Express) {
       console.log(`[serveStatic] No dist/ folder at project root`);
     }
   }
-  
+
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -51,3 +65,4 @@ export function serveStatic(app: Express) {
     res.sendFile(indexPath);
   });
 }
+

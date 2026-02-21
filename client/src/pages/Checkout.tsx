@@ -133,7 +133,7 @@ export default function Checkout() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/cart">
-          <button className="flex items-center gap-2 text-violet-600 hover:text-violet-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour au panier
           </button>
@@ -157,7 +157,7 @@ export default function Checkout() {
                   </label>
                   <input
                     type="email"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8c8070]"
                     placeholder="votre@email.com"
                   />
                 </div>
@@ -168,7 +168,7 @@ export default function Checkout() {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8c8070]"
                     placeholder="Votre nom"
                   />
                 </div>
@@ -243,7 +243,7 @@ export default function Checkout() {
                 </div>
                 <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-bold text-gray-900">
                   <span>Total</span>
-                  <span className="text-violet-600">${total.toFixed(2)}</span>
+                  <span className="text-[#8c8070]">${total.toFixed(2)}</span>
                 </div>
               </div>
 

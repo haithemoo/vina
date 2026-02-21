@@ -62,7 +62,7 @@ export default function Help() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/">
-          <button className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>
@@ -81,9 +81,9 @@ export default function Help() {
             return (
               <div
                 key={i}
-                className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg p-6 border border-gray-200"
+                className="bg-gradient-to-br from-[#b4aa9b]/20 to-[#8c8070]/10 rounded-lg p-6 border border-[#c8bfb0]"
               >
-                <Icon className="w-8 h-8 text-emerald-600 mb-4" />
+                <Icon className="w-8 h-8 text-[#8c8070] mb-4" />
                 <h3 className="font-semibold text-gray-900 mb-2">
                   {contact.title}
                 </h3>
@@ -117,7 +117,7 @@ export default function Help() {
         </div>
 
         {/* Additional Resources */}
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-8 text-center">
+        <div className="bg-gradient-to-r from-[#b4aa9b]/20 to-[#8c8070]/10 rounded-lg p-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Besoin d'aide supplémentaire ?
           </h2>
@@ -125,7 +125,7 @@ export default function Help() {
             Notre équipe de support est prête à vous aider. N'hésitez pas à nous
             contacter pour toute question ou problème.
           </p>
-          <Button className="btn-primary">Contacter le support</Button>
+          <Button className="bg-[#8c8070] hover:bg-[#6d6458] text-white">Contacter le support</Button>
         </div>
       </div>
     </div>

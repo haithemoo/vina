@@ -80,7 +80,7 @@ export default function ProductDetail() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/">
-          <button className="flex items-center gap-2 text-violet-600 hover:text-violet-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>
@@ -102,11 +102,17 @@ export default function ProductDetail() {
           {/* Product Info */}
           <div>
             <div className="mb-4">
-                      <span className="inline-block px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-sm font-semibold mb-3">
-                        {product.category === 'shirts' ? 'T-shirts & Chemises' : 
-                         product.category === 'pants' ? 'Pantalons' : 
-                         product.category === 'accessories' ? 'Accessoires' : 
-                         product.category === 'shoes' ? 'Chaussures' : 'Autres'}
+                      <span className="inline-block px-3 py-1 bg-[#b4aa9b]/20 text-[#8c8070] rounded-full text-sm font-semibold mb-3">
+                        {product.category === 'women' ? 'Femmes' :
+                         product.category === 'men' ? 'Hommes' :
+                         product.category === 'children' ? 'Enfants' :
+                         product.category === 'dresses' ? 'Robes' :
+                         product.category === 'suits' ? 'Costumes' :
+                         product.category === 'sportswear' ? 'Sport' :
+                         product.category === 'accessories' ? 'Accessoires' :
+                         product.category === 'shoes' ? 'Chaussures' :
+                         product.category === 'bags' ? 'Sacs' :
+                         product.category === 'jewelry' ? 'Bijoux' : 'Autres'}
                       </span>
             </div>
 
@@ -141,8 +147,8 @@ export default function ProductDetail() {
 
             {/* Price and Actions */}
             <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <div className="text-4xl font-bold text-violet-600 mb-4">
-                ${product.price}
+            <div className="text-4xl font-bold text-[#8c8070] mb-4">
+                {product.price} DT
               </div>
               <div className="space-y-3">
                 <Button
@@ -189,10 +195,10 @@ export default function ProductDetail() {
         </div>
 
         {/* Creator Info */}
-        <div className="bg-gradient-to-r from-violet-50 to-cyan-50 rounded-xl p-8 mb-12">
+        <div className="bg-[#b4aa9b]/10 rounded-xl p-8 mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">À propos du créateur</h2>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400 flex items-center justify-center text-white text-2xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#8c8070] to-[#b4aa9b] flex items-center justify-center text-white text-2xl font-bold">
               {product.creatorId.toString().charAt(0)}
             </div>
             <div>

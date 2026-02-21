@@ -61,8 +61,8 @@ export default function Dashboard() {
               <Link href="/orders">
                 <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-violet-100 rounded-lg flex items-center justify-center">
-                      <ShoppingBag className="w-6 h-6 text-violet-600" />
+                    <div className="w-12 h-12 bg-[#b4aa9b]/20 rounded-lg flex items-center justify-center">
+                      <ShoppingBag className="w-6 h-6 text-[#8c8070]" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">
@@ -79,8 +79,8 @@ export default function Dashboard() {
               <Link href="/creator-dashboard">
                 <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center">
-                      <User className="w-6 h-6 text-cyan-600" />
+                    <div className="w-12 h-12 bg-[#b4aa9b]/20 rounded-lg flex items-center justify-center">
+                      <User className="w-6 h-6 text-[#8c8070]" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">
@@ -97,8 +97,8 @@ export default function Dashboard() {
               <Link href="/cart">
                 <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-                      <ShoppingBag className="w-6 h-6 text-pink-600" />
+                    <div className="w-12 h-12 bg-[#b4aa9b]/20 rounded-lg flex items-center justify-center">
+                      <ShoppingBag className="w-6 h-6 text-[#8c8070]" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">

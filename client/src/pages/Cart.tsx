@@ -1,13 +1,14 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
 export default function Cart() {
   const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const cartQuery = trpc.cart.getItems.useQuery(undefined, {
@@ -41,8 +42,7 @@ export default function Cart() {
   const handleCheckout = async () => {
     setIsCheckingOut(true);
     try {
-      // Redirect to checkout page
-      window.location.href = "/checkout";
+      setLocation("/checkout");
     } catch (error) {
       toast.error("Erreur lors du passage à la caisse");
       setIsCheckingOut(false);
@@ -78,7 +78,7 @@ export default function Cart() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/">
-          <button className="flex items-center gap-2 text-violet-600 hover:text-violet-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>
@@ -113,15 +113,15 @@ export default function Cart() {
                     </div>
                     <div className="flex-1">
                       <Link href={`/product/${item.product?.id}`}>
-                        <h3 className="font-semibold text-gray-900 hover:text-violet-600 cursor-pointer">
+                        <h3 className="font-semibold text-gray-900 hover:text-[#8c8070] cursor-pointer">
                           {item.product?.name}
                         </h3>
                       </Link>
                       <p className="text-sm text-gray-600 mb-2">
                         {item.product?.category}
                       </p>
-                      <p className="text-lg font-bold text-violet-600">
-                        ${item.product?.price}
+                      <p className="text-lg font-bold text-[#8c8070]">
+                        {item.product?.price} DT
                       </p>
                     </div>
                     <button
@@ -152,15 +152,15 @@ export default function Cart() {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-gray-600">
                     <span>Sous-total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{total.toFixed(2)} DT</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Frais de traitement</span>
-                    <span>$0.00</span>
+                    <span>0.00 DT</span>
                   </div>
                   <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-bold text-gray-900">
                     <span>Total</span>
-                    <span className="text-violet-600">${total.toFixed(2)}</span>
+                    <span className="text-[#8c8070]">{total.toFixed(2)} DT</span>
                   </div>
                 </div>
 

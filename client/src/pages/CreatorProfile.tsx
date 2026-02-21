@@ -51,7 +51,7 @@ export default function CreatorProfile() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/">
-          <button className="flex items-center gap-2 text-violet-600 hover:text-violet-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>
@@ -59,7 +59,7 @@ export default function CreatorProfile() {
       </div>
 
       {/* Creator Banner */}
-      <div className="bg-gradient-to-r from-violet-100 to-cyan-100 h-48">
+      <div className="bg-gradient-to-r from-[#b4aa9b]/20 to-[#8c8070]/10 h-48">
         {creator.bannerUrl && (
           <img
             src={creator.bannerUrl}
@@ -72,7 +72,7 @@ export default function CreatorProfile() {
       {/* Creator Info */}
       <div className="container max-w-4xl -mt-24 relative z-10 mb-12">
         <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col md:flex-row gap-8 items-start md:items-end">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400 flex items-center justify-center text-white text-5xl font-bold flex-shrink-0">
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#8c8070] to-[#b4aa9b] flex items-center justify-center text-white text-5xl font-bold flex-shrink-0">
             {creator.displayName.charAt(0).toUpperCase()}
           </div>
 
@@ -82,7 +82,7 @@ export default function CreatorProfile() {
                 {creator.displayName}
               </h1>
               {creator.isVerified && (
-                <span className="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-sm font-semibold">
+                <span className="bg-[#b4aa9b]/20 text-[#8c8070] px-3 py-1 rounded-full text-sm font-semibold">
                   ✓ Vérifié
                 </span>
               )}
@@ -92,19 +92,19 @@ export default function CreatorProfile() {
             <div className="grid grid-cols-3 gap-6">
               <div>
                 <p className="text-gray-600 text-sm">Produits</p>
-                <p className="text-2xl font-bold text-violet-600">
+                <p className="text-2xl font-bold text-[#8c8070]">
                   {productsQuery.data?.length || 0}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Ventes totales</p>
-                <p className="text-2xl font-bold text-cyan-600">
+                <p className="text-2xl font-bold text-[#8c8070]">
                   {creator.totalSales}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Revenus</p>
-                <p className="text-2xl font-bold text-pink-600">
+                <p className="text-2xl font-bold text-[#8c8070]">
                   ${creator.totalEarnings}
                 </p>
               </div>
@@ -153,7 +153,7 @@ export default function CreatorProfile() {
                       {product.category}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xl font-bold text-violet-600">
+                      <span className="text-xl font-bold text-[#8c8070]">
                         ${product.price}
                       </span>
                       <span className="text-xs text-gray-500">

@@ -8,7 +8,7 @@ export default function Terms() {
       {/* Header */}
       <div className="container py-6">
         <Link href="/">
-          <button className="flex items-center gap-2 text-violet-600 hover:text-violet-700 font-semibold mb-6">
+          <button className="flex items-center gap-2 text-[#8c8070] hover:text-[#6d6458] font-semibold mb-6">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </button>

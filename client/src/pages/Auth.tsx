@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, ShoppingBag, Heart, Menu, X, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Search, ShoppingBag, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function Auth() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState("login");
+  const utils = trpc.useUtils();
+
   // Form states
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -19,28 +22,46 @@ export default function Auth() {
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
 
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      toast.success("Connexion réussie !");
+      setLocation("/dashboard");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erreur lors de la connexion");
+    },
+  });
+
+  const registerMutation = trpc.auth.register.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      toast.success("Compte créé avec succès !");
+      setLocation("/dashboard");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erreur lors de l'inscription");
+    },
+  });
+
+  const isLoading = loginMutation.isPending || registerMutation.isPending;
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Simulate login - in real app, call API
-    setTimeout(() => {
-      setIsLoading(false);
-      setLocation("/dashboard");
-    }, 1500);
+    loginMutation.mutate({ email: loginEmail, password: loginPassword });
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (registerPassword !== registerConfirmPassword) {
-      alert("Les mots de passe ne correspondent pas");
+      toast.error("Les mots de passe ne correspondent pas");
       return;
     }
-    setIsLoading(true);
-    // Simulate registration - in real app, call API
-    setTimeout(() => {
-      setIsLoading(false);
-      setLocation("/dashboard");
-    }, 1500);
+    registerMutation.mutate({
+      email: registerEmail,
+      password: registerPassword,
+      name: registerName,
+    });
   };
 
   return (
@@ -106,7 +127,7 @@ export default function Auth() {
               </CardHeader>
               
               <CardContent>
-                <Tabs defaultValue="login" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 bg-[oklch(0.97_0.003_65)] mb-6">
                     <TabsTrigger 
                       value="login" 
@@ -167,11 +188,13 @@ export default function Auth() {
                           <input type="checkbox" className="rounded border-[#c8bfb0] text-[#8c8070] focus:ring-[#8c8070]" />
                           Se souvenir de moi
                         </label>
-                        <Link href="/forgot-password">
-                          <span className="text-[#8c8070] hover:text-[#6d6458] cursor-pointer">
-                            Mot de passe oublié ?
-                          </span>
-                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => toast.info("Veuillez contacter le support pour réinitialiser votre mot de passe.")}
+                          className="text-[#8c8070] hover:text-[#6d6458] cursor-pointer"
+                        >
+                          Mot de passe oublié ?
+                        </button>
                       </div>
 
                       <Button 
@@ -183,27 +206,6 @@ export default function Auth() {
                       </Button>
                     </form>
 
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#c8bfb0]"></div>
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="px-4 bg-white text-[oklch(0.55_0.016_65)]">ou</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      variant="outline" 
-                      className="w-full border-[#c8bfb0] text-[oklch(0.35_0.02_65)] hover:bg-[oklch(0.97_0.003_65)]"
-                    >
-                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
-                      Continuer avec Google
-                    </Button>
                   </TabsContent>
 
                   {/* Register Form */}
@@ -305,40 +307,33 @@ export default function Auth() {
                       </Button>
                     </form>
 
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#c8bfb0]"></div>
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="px-4 bg-white text-[oklch(0.55_0.016_65)]">ou</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      variant="outline" 
-                      className="w-full border-[#c8bfb0] text-[oklch(0.35_0.02_65)] hover:bg-[oklch(0.97_0.003_65)]"
-                    >
-                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
-                      S'inscrire avec Google
-                    </Button>
                   </TabsContent>
                 </Tabs>
               </CardContent>
               
               <CardFooter className="justify-center pb-6">
                 <p className="text-sm text-[oklch(0.55_0.016_65)]">
-                  Vous avez déjà un compte ?{" "}
-                  <button 
-                    onClick={() => document.querySelector('[data-state="login"]')?.click()}
-                    className="text-[#8c8070] hover:text-[#6d6458] font-medium cursor-pointer"
-                  >
-                    Se connecter
-                  </button>
+                  {activeTab === "register" ? (
+                    <>
+                      Vous avez déjà un compte ?{" "}
+                      <button
+                        onClick={() => setActiveTab("login")}
+                        className="text-[#8c8070] hover:text-[#6d6458] font-medium cursor-pointer"
+                      >
+                        Se connecter
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Pas encore de compte ?{" "}
+                      <button
+                        onClick={() => setActiveTab("register")}
+                        className="text-[#8c8070] hover:text-[#6d6458] font-medium cursor-pointer"
+                      >
+                        S'inscrire
+                      </button>
+                    </>
+                  )}
                 </p>
               </CardFooter>
             </Card>

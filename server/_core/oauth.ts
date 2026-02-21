@@ -3,13 +3,41 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
 }
 
+function buildOAuthUrl(req: Request): string {
+  const redirectUri = `${ENV.appUrl}/api/oauth/callback`;
+  const state = btoa(redirectUri);
+  
+  // Build authorization URL with required parameters
+  const params = new URLSearchParams({
+    clientId: ENV.appId,
+    responseType: "code",
+    redirectUri: redirectUri,
+    state: state,
+    scope: "openid profile email",
+  });
+  
+  return `${ENV.oAuthServerUrl}/webdev.v1.WebDevAuthPublicService/Authorize?${params.toString()}`;
+}
+
 export function registerOAuthRoutes(app: Express) {
+  // OAuth start route - redirects to OAuth server for authentication
+  app.get("/api/oauth/start", async (req: Request, res: Response) => {
+    if (!ENV.oAuthServerUrl) {
+      res.status(500).json({ error: "OAuth server not configured" });
+      return;
+    }
+    
+    const oauthUrl = buildOAuthUrl(req);
+    res.redirect(302, oauthUrl);
+  });
+
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
