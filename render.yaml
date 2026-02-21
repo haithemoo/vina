@@ -3,7 +3,7 @@ services:
     name: vina
     env: node
     region: frankfurt
-    buildCommand: npm install -g pnpm && pnpm install && pnpm build
+    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install && pnpm build
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV
