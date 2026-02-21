@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { type Server } from "http";
 
 export async function setupVite(app: Express, server: Server) {
@@ -31,8 +32,21 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   // In production, the dist folder is at the project root
-  // Since this file is at server/_core/vite.ts, we need to go up 2 levels
-  const projectRoot = path.resolve(import.meta.dirname, "../..");
+  // Handle both development and production paths
+  let projectRoot: string;
+  
+  if (process.env.NODE_ENV === "production") {
+    // On Render, the app runs from /opt/render/project/src
+    // We need to figure out the correct path to dist
+    // Use import.meta.url to get the current file location
+    const currentFilePath = fileURLToPath(import.meta.url);
+    const currentDir = path.dirname(currentFilePath);
+    // Go up from server/_core/ to project root
+    projectRoot = path.resolve(currentDir, "../..");
+  } else {
+    projectRoot = path.resolve(import.meta.dirname, "../..");
+  }
+  
   const distPath = path.join(projectRoot, "dist", "public");
 
   // List what's in the project root for debugging
