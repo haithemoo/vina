@@ -1,10 +1,11 @@
+# Root Directory doit rester vide (racine du dépôt) pour que le build crée dist/public et dist/admin.
 services:
   - type: web
     name: vina
     env: node
     region: frankfurt
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install && pnpm build
+    startCommand: pnpm start
     envVars:
       - key: NODE_ENV
         value: production

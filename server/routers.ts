@@ -1,14 +1,20 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure, bannerWriteProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
-import { products } from "../drizzle/schema";
+import { products, users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { ENV } from "./_core/env";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const uploadsPath = path.join(projectRoot, "uploads");
 
 export const appRouter = router({
   system: systemRouter,
@@ -125,6 +131,14 @@ export const appRouter = router({
         return product;
       }),
 
+    getVariants: publicProcedure
+      .input(z.number())
+      .query(({ input }) => db.getProductVariants(input)),
+
+    getImages: publicProcedure
+      .input(z.number())
+      .query(({ input }) => db.getProductImages(input)),
+
     getByCategory: publicProcedure
       .input(z.object({
         category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]),
@@ -134,6 +148,29 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return db.getProductsByCategory(input.category, input.limit, input.offset);
       }),
+
+    getCategoryFilters: publicProcedure
+      .input(z.object({ category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]) }))
+      .query(({ input }) => db.getCategoryFilters(input.category)),
+
+    listByCategoryFiltered: publicProcedure
+      .input(z.object({
+        category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]),
+        priceMin: z.number().optional(),
+        priceMax: z.number().optional(),
+        colors: z.array(z.string()).optional(),
+        sizes: z.array(z.string()).optional(),
+        onSale: z.boolean().optional(),
+        limit: z.number().default(100),
+      }))
+      .query(({ input }) => db.getProductsByCategoryFiltered(input.category, {
+        priceMin: input.priceMin,
+        priceMax: input.priceMax,
+        colors: input.colors,
+        sizes: input.sizes,
+        onSale: input.onSale,
+        limit: input.limit,
+      })),
 
     search: publicProcedure
       .input(z.object({
@@ -305,21 +342,18 @@ export const appRouter = router({
       }),
 
     add: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input: productId, ctx }) => {
-        // Check if product exists
+      .input(z.object({ productId: z.number(), variantId: z.number().optional(), quantity: z.number().min(1).optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const { productId, variantId, quantity = 1 } = input;
         const product = await db.getProductById(productId);
         if (!product) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
         }
-
-        // Check if already in cart
         const existing = await db.getCartItems(ctx.user.id);
-        if (existing.some(item => item.productId === productId)) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Product already in cart" });
+        if (existing.some(item => item.productId === productId && (item.variantId ?? null) === (variantId ?? null))) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ce produit (cette variante) est déjà dans le panier" });
         }
-
-        return db.addToCart(ctx.user.id, productId);
+        return db.addToCart(ctx.user.id, productId, variantId, quantity);
       }),
 
     remove: protectedProcedure
@@ -438,6 +472,287 @@ export const appRouter = router({
         }
         return db.updateOrderStatus(input.orderId, input.status);
       }),
+  }),
+
+  // Admin router (back office — les modifications sont publiées sur le site)
+  admin: router({
+    products: router({
+      list: adminProcedure
+        .input(z.object({ limit: z.number().default(100), offset: z.number().default(0) }))
+        .query(({ input }) => db.getProductsAdmin(input.limit, input.offset)),
+      create: adminProcedure
+        .input(z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]),
+          price: z.string().min(1),
+          salePrice: z.string().optional(),
+          reference: z.string().optional(),
+          previewImageUrl: z.string().min(1),
+          fileUrl: z.string().optional(),
+          isFeatured: z.boolean().optional(),
+          isActive: z.boolean().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const created = await db.createProductAdmin({
+              name: input.name,
+              description: input.description,
+              category: input.category,
+              price: input.price,
+              salePrice: input.salePrice,
+              reference: input.reference,
+              previewImageUrl: input.previewImageUrl,
+              fileUrl: input.fileUrl ?? "",
+              isFeatured: input.isFeatured ?? false,
+              isActive: input.isActive ?? true,
+            });
+            if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de données indisponible ou tables manquantes (products/creators). Exécutez les migrations." });
+            return created;
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("doesn't exist") || msg.includes("Unknown table")) {
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Table products ou creators manquante. Exécutez les migrations SQL (drizzle)." });
+            }
+            throw e;
+          }
+        }),
+      update: adminProcedure
+        .input(z.object({
+          id: z.number(),
+          reference: z.string().optional().nullable(),
+          name: z.string().optional(),
+          description: z.string().optional().nullable(),
+          category: z.enum(["women", "men", "children", "dresses", "suits", "sportswear", "accessories", "shoes", "bags", "jewelry", "other"]).optional(),
+          price: z.string().optional(),
+          salePrice: z.string().optional().nullable(),
+          previewImageUrl: z.string().optional(),
+          fileUrl: z.string().optional(),
+          isFeatured: z.boolean().optional(),
+          isActive: z.boolean().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const dbInstance = await db.getDb();
+          if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+          const { id, ...rest } = input;
+          const updateData: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(rest)) if (v !== undefined) updateData[k] = v;
+          if (Object.keys(updateData).length === 0) return db.getProductById(id);
+          await dbInstance.update(products).set(updateData as any).where(eq(products.id, id));
+          return db.getProductById(id);
+        }),
+      delete: adminProcedure
+        .input(z.number())
+        .mutation(async ({ input: productId }) => {
+          const dbInstance = await db.getDb();
+          if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+          await dbInstance.delete(products).where(eq(products.id, productId));
+          return { success: true };
+        }),
+      variants: router({
+        list: adminProcedure.input(z.number()).query(({ input }) => db.getProductVariants(input)),
+        create: adminProcedure
+          .input(z.object({ productId: z.number(), sku: z.string(), size: z.string().optional(), color: z.string().optional(), stock: z.number().optional() }))
+          .mutation(({ input }) => db.createProductVariant(input)),
+        update: adminProcedure
+          .input(z.object({ id: z.number(), sku: z.string().optional(), size: z.string().optional(), color: z.string().optional(), stock: z.number().optional() }))
+          .mutation(async ({ input }) => {
+            const { id, ...rest } = input;
+            return db.updateProductVariant(id, rest);
+          }),
+        delete: adminProcedure.input(z.number()).mutation(({ input }) => db.deleteProductVariant(input)),
+      }),
+      images: router({
+        list: adminProcedure.input(z.number()).query(({ input }) => db.getProductImages(input)),
+        add: adminProcedure.input(z.object({ productId: z.number(), imageUrl: z.string(), sortOrder: z.number().optional() })).mutation(({ input }) => db.addProductImage(input.productId, input.imageUrl, input.sortOrder)),
+        delete: adminProcedure.input(z.number()).mutation(({ input }) => db.deleteProductImage(input)),
+      }),
+    }),
+    stock: router({
+      list: adminProcedure
+        .input(z.object({ size: z.string().optional(), color: z.string().optional() }).optional())
+        .query(({ input }) => db.getAllVariantsForAdmin(input)),
+      updateVariant: adminProcedure
+        .input(z.object({ id: z.number(), stock: z.number().optional(), sku: z.string().optional(), size: z.string().optional(), color: z.string().optional() }))
+        .mutation(async ({ input }) => {
+          const { id, ...rest } = input;
+          return db.updateProductVariant(id, rest);
+        }),
+    }),
+    upload: adminProcedure
+      .input(z.object({ dataUrl: z.string().min(1), folder: z.enum(["products", "banners", "settings"]) }))
+      .mutation(({ input }) => {
+        const match = input.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "Format dataUrl invalide" });
+        const mime = match[1];
+        const ext = mime === "image/png" ? "png" : mime === "image/jpeg" || mime === "image/jpg" ? "jpg" : mime === "image/webp" ? "webp" : "png";
+        const buf = Buffer.from(match[2], "base64");
+        const dir = path.join(uploadsPath, input.folder);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const name = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
+        const filePath = path.join(dir, name);
+        fs.writeFileSync(filePath, buf);
+        return { url: `/uploads/${input.folder}/${name}` };
+      }),
+    users: router({
+      list: adminProcedure
+        .input(z.object({ limit: z.number().default(100), offset: z.number().default(0) }))
+        .query(({ input }) => db.getAllUsers(input.limit, input.offset)),
+      create: adminProcedure
+        .input(z.object({
+          email: z.string().email(),
+          password: z.string().min(6),
+          name: z.string().min(1),
+          role: z.enum(["admin", "sales", "stock", "designer"]),
+        }))
+        .mutation(async ({ input }) => {
+          const existing = await db.getUserByEmail(input.email);
+          if (existing) throw new TRPCError({ code: "CONFLICT", message: "Un compte avec cet email existe déjà" });
+          const bcrypt = await import("bcryptjs");
+          const passwordHash = await bcrypt.hash(input.password, 10);
+          const openId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          await db.createUser({
+            openId,
+            email: input.email,
+            name: input.name,
+            passwordHash,
+            loginMethod: "email",
+          });
+          const user = await db.getUserByEmail(input.email);
+          if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+          const dbInstance = await db.getDb();
+          if (dbInstance) await dbInstance.update(users).set({ role: input.role }).where(eq(users.id, user.id));
+          return db.getUserByEmail(input.email);
+        }),
+    }),
+    orders: router({
+      list: adminProcedure
+        .input(z.object({
+          limit: z.number().default(100),
+          offset: z.number().default(0),
+          status: z.enum(["pending", "confirmed", "shipped", "completed", "failed", "refunded", "cancelled"]).optional(),
+        }))
+        .query(({ input }) => db.getAllOrders(input.limit, input.offset, input.status)),
+      getById: adminProcedure
+        .input(z.number())
+        .query(async ({ input }) => {
+          const order = await db.getOrderById(input);
+          if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Commande introuvable" });
+          const items = await db.getOrderItems(input);
+          return { ...order, items };
+        }),
+      updateStatus: adminProcedure
+        .input(z.object({ orderId: z.number(), status: z.enum(["pending", "confirmed", "shipped", "completed", "failed", "refunded", "cancelled"]) }))
+        .mutation(({ input }) => db.updateOrderStatus(input.orderId, input.status)),
+    }),
+    banners: router({
+      list: adminProcedure
+        .input(z.object({
+          pageType: z.string().optional(),
+          status: z.string().optional(),
+          pageIdentifier: z.string().optional(),
+          dateFrom: z.string().optional(),
+          dateTo: z.string().optional(),
+        }).optional())
+        .query(({ input }) => db.getBannersAll(input)),
+      create: bannerWriteProcedure
+        .input(z.object({
+          title: z.string().min(1),
+          imageUrl: z.string().min(1),
+          subtitle: z.string().optional().nullable(),
+          description: z.string().optional().nullable(),
+          buttonText: z.string().optional().nullable(),
+          buttonLink: z.string().optional().nullable(),
+          linkUrl: z.string().optional().nullable(),
+          pageType: z.enum(["home", "category", "subcategory", "filter", "promotion"]).optional(),
+          pageIdentifier: z.string().optional().nullable(),
+          sortOrder: z.number().optional(),
+          startDate: z.string().optional().nullable(),
+          endDate: z.string().optional().nullable(),
+          status: z.enum(["active", "inactive"]).optional(),
+          isActive: z.boolean().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const created = await db.createBanner(input);
+            if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de données indisponible ou table banners manquante." });
+            return created;
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("doesn't exist") || msg.includes("Unknown table")) {
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Table banners manquante. Exécutez la migration drizzle/0007_banner_management.sql." });
+            }
+            throw e;
+          }
+        }),
+      update: bannerWriteProcedure
+        .input(z.object({
+          id: z.number(),
+          title: z.string().min(1).optional(),
+          imageUrl: z.string().min(1).optional(),
+          subtitle: z.string().optional().nullable(),
+          description: z.string().optional().nullable(),
+          buttonText: z.string().optional().nullable(),
+          buttonLink: z.string().optional().nullable(),
+          linkUrl: z.string().optional().nullable(),
+          pageType: z.enum(["home", "category", "subcategory", "filter", "promotion"]).optional(),
+          pageIdentifier: z.string().optional().nullable(),
+          sortOrder: z.number().optional(),
+          startDate: z.string().optional().nullable(),
+          endDate: z.string().optional().nullable(),
+          status: z.enum(["active", "inactive"]).optional(),
+          isActive: z.boolean().optional(),
+        }))
+        .mutation(({ input }) => {
+          const { id, ...rest } = input;
+          return db.updateBanner(id, rest);
+        }),
+      delete: bannerWriteProcedure.input(z.number()).mutation(({ input }) => db.deleteBanner(input)),
+      images: router({
+        list: adminProcedure.input(z.number()).query(({ input }) => db.getBannerImages(input)),
+        add: bannerWriteProcedure.input(z.object({ bannerId: z.number(), imageUrl: z.string(), sortOrder: z.number().optional() })).mutation(({ input }) => db.addBannerImage(input.bannerId, input.imageUrl, input.sortOrder)),
+        delete: bannerWriteProcedure.input(z.number()).mutation(({ input }) => db.deleteBannerImage(input)),
+      }),
+    }),
+    settings: router({
+      get: adminProcedure.query(() => db.getSiteSettings()),
+      update: adminProcedure
+        .input(z.record(z.string(), z.string()))
+        .mutation(async ({ input }) => {
+          for (const [k, v] of Object.entries(input)) await db.setSiteSetting(k, v);
+          return db.getSiteSettings();
+        }),
+    }),
+  }),
+
+  // Banners (public - accueil + pages catégories/filtres)
+  banners: router({
+    list: publicProcedure.query(() => db.getBannersActiveWithImages()),
+    getForPage: publicProcedure
+      .input(z.object({ pageType: z.string(), pageIdentifier: z.string().optional().nullable() }))
+      .query(({ input }) => db.getBannersForPage(input.pageType, input.pageIdentifier)),
+    getForPageWithImages: publicProcedure
+      .input(z.object({ pageType: z.string(), pageIdentifier: z.string().optional().nullable() }))
+      .query(async ({ input }) => {
+        const list = await db.getBannersForPage(input.pageType, input.pageIdentifier);
+        const result = [];
+        for (const b of list) {
+          const extra = await db.getBannerImages(b.id);
+          const images = [b.imageUrl, ...extra.map((i) => i.imageUrl)];
+          result.push({
+            ...b,
+            images,
+            buttonText: (b as any).buttonText ?? null,
+            buttonLink: (b as any).buttonLink ?? (b as any).linkUrl ?? null,
+          });
+        }
+        return result;
+      }),
+  }),
+
+  // Site settings (public - nom du site, email contact, etc.)
+  siteSettings: router({
+    get: publicProcedure.query(() => db.getSiteSettings()),
   }),
 
   // Reviews router

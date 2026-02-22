@@ -15,6 +15,13 @@
       "when": 1771452556697,
       "tag": "0001_curved_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1771725638730,
+      "tag": "0002_woozy_juggernaut",
+      "breakpoints": true
     }
   ]
 }

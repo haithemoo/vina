@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import ProductDetail from "./pages/ProductDetail";
+import CategoryPage from "./pages/CategoryPage";
 import Cart from "./pages/Cart";
 import OrderHistory from "./pages/OrderHistory";
 import CreatorProfile from "./pages/CreatorProfile";
@@ -21,6 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/category/:id"} component={CategoryPage} />
       <Route path={"/product/:id"} component={ProductDetail} />
       <Route path={"/cart"} component={Cart} />
       <Route path={"/orders"} component={OrderHistory} />
@@ -35,7 +37,6 @@ function Router() {
       <Route path={"/register"} component={Auth} />
       <Route path={"/auth"} component={Auth} />
       <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );

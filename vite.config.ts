@@ -167,9 +167,11 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     host: true,
+    hmr: { port: 24680 },
     allowedHosts: [
       ".manuspre.computer",
       ".manus.computer",

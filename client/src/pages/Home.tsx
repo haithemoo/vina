@@ -2,26 +2,197 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Link } from "wouter";
-import { Search, ShoppingBag, Heart, ChevronRight, Menu, X, Star, Sparkles, Truck, RotateCcw, Shield, User, Instagram, Facebook, Twitter } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Link, useLocation } from "wouter";
+import { Search, ShoppingBag, Heart, ChevronRight, Menu, X, Star, Sparkles, Truck, RotateCcw, Shield, User, Instagram, Facebook, Twitter, ChevronLeft } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
-// Types pour les catégories
+// Types pour les catégories (4 catégories + sous-catégories)
+interface SubCategory {
+  id: string;
+  label: string;
+}
 interface Category {
   id: string;
   label: string;
   icon: string;
-  subcategories: string[];
+  subcategories: SubCategory[]; // id = backend category ou "all"
 }
 
-// Catégories principales avec sous-catégories style mabrouk.tn
+// Catégories accueil : sous-catégories complètes Femme, Accessoires Homme/Femme, Nouveautés
 const CATEGORIES: Category[] = [
   { id: "all", label: "Tout", icon: "🏠", subcategories: [] },
-  { id: "men", label: "Homme", icon: "👔", subcategories: ["Pantalons", "T-shirts", "Chemises", "Vestes"] },
-  { id: "women", label: "Femme", icon: "👗", subcategories: ["Robes", "Tops", "Pantalons", "Jupes"] },
-  { id: "accessories", label: "Accessoires", icon: "👜", subcategories: ["Sacs", "Ceintures", "Écharpes", "Bijoux"] },
+  {
+    id: "women",
+    label: "Femme",
+    icon: "👗",
+    subcategories: [
+      { id: "all", label: "Tout Femme" },
+      { id: "dresses", label: "Robes" },
+      { id: "women", label: "Tops & Vêtements" },
+      { id: "sportswear", label: "Sport" },
+      { id: "accessories", label: "Accessoires femme" },
+    ],
+  },
+  {
+    id: "men",
+    label: "Homme",
+    icon: "👔",
+    subcategories: [
+      { id: "all", label: "Tout Homme" },
+      { id: "suits", label: "Costumes" },
+      { id: "men", label: "Chemises & Pantalons" },
+      { id: "sportswear", label: "Sport" },
+      { id: "accessories", label: "Accessoires homme" },
+    ],
+  },
+  {
+    id: "accessories",
+    label: "Accessoires",
+    icon: "👜",
+    subcategories: [
+      { id: "all", label: "Tout Accessoires" },
+      { id: "bags", label: "Sacs" },
+      { id: "shoes", label: "Chaussures" },
+      { id: "jewelry", label: "Bijoux" },
+      { id: "accessories", label: "Écharpes & Ceintures" },
+    ],
+  },
+  {
+    id: "children",
+    label: "Enfant",
+    icon: "👶",
+    subcategories: [
+      { id: "all", label: "Tout Enfant" },
+      { id: "children", label: "Vêtements enfant" },
+    ],
+  },
   { id: "sales", label: "Soldes", icon: "🔥", subcategories: [] },
+  { id: "new", label: "Nouveautés", icon: "✨", subcategories: [] },
 ];
+
+// Bannière pour un filtre (catégorie/sous-catégorie) sur l'accueil
+function FilterBanner({ pageIdentifier }: { pageIdentifier: string }) {
+  const { data: list = [] } = trpc.banners.getForPageWithImages.useQuery({
+    pageType: "filter",
+    pageIdentifier,
+  });
+  if (list.length === 0) return null;
+  const b = list[0] as { imageUrl: string; title: string; buttonLink?: string | null; linkUrl?: string | null };
+  const link = b.buttonLink ?? b.linkUrl ?? "#";
+  return (
+    <div className="w-full container px-4 py-4">
+      <a href={link} className="block w-full rounded-xl overflow-hidden h-32 md:h-40 relative">
+        <img src={b.imageUrl} alt={b.title} className="w-full h-full object-cover" loading="lazy" />
+        <div className="absolute inset-0 bg-black/20 flex items-end p-4">
+          <span className="text-white text-lg font-semibold drop-shadow">{b.title}</span>
+        </div>
+      </a>
+    </div>
+  );
+}
+
+// Slider bannières : rotation auto 4 s, flèches, dots, lazy loading
+const ROTATION_MS = 4000;
+function BannerSlider({ banners }: { banners: Array<{ id: number; title: string; imageUrl: string; linkUrl?: string | null; images?: string[]; buttonLink?: string | null; subtitle?: string | null }> }) {
+  const slides = useMemo(() => {
+    const out: Array<{ key: string; imageUrl: string; title: string; subtitle?: string | null; link: string }> = [];
+    for (const b of banners) {
+      const images = (b.images?.length ? b.images : [b.imageUrl]) as string[];
+      const link = (b.buttonLink ?? b.linkUrl) || "#";
+      const subtitle = (b as { subtitle?: string | null }).subtitle ?? null;
+      images.forEach((imgUrl, idx) => {
+        out.push({ key: `${b.id}-${idx}`, imageUrl: imgUrl, title: b.title, subtitle, link });
+      });
+    }
+    return out;
+  }, [banners]);
+  const [current, setCurrent] = useState(0);
+  const n = slides.length;
+  const go = (delta: number) => setCurrent((c) => (c + delta + n) % n);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (n <= 1) return;
+    const t = setInterval(() => setCurrent((c) => (c + 1) % n), ROTATION_MS);
+    return () => clearInterval(t);
+  }, [n]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const slideEl = el.querySelector(`[data-slide-index="${current}"]`);
+    slideEl?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [current]);
+
+  if (slides.length === 0) return null;
+  return (
+    <section className="relative w-full overflow-hidden bg-[#8c8070]" aria-label="Carousel de bannières">
+      <div
+        ref={containerRef}
+        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {slides.map((s, idx) => (
+          <a
+            key={s.key}
+            data-slide-index={idx}
+            href={s.link}
+            className="relative block flex-shrink-0 min-w-full w-full min-h-[200px] md:min-h-[320px] aspect-[3/1] snap-start snap-center"
+          >
+            <img
+              src={s.imageUrl}
+              alt={s.title}
+              className="w-full h-full object-cover"
+              loading={idx <= current + 1 ? "eager" : "lazy"}
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-black/20 flex flex-col items-start justify-end p-6">
+              <span className="text-white text-xl md:text-2xl font-semibold drop-shadow" style={{ fontFamily: "Playfair Display, serif" }}>
+                {s.title}
+              </span>
+              {s.subtitle && (
+                <span className="text-white/90 text-sm md:text-base mt-1 drop-shadow">{s.subtitle}</span>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+      {n > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#8c8070] flex items-center justify-center shadow-lg transition-opacity"
+            aria-label="Bannière précédente"
+          >
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 hover:bg-white text-[#8c8070] flex items-center justify-center shadow-lg transition-opacity"
+            aria-label="Bannière suivante"
+          >
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setCurrent(idx)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  idx === current ? "bg-white scale-125" : "bg-white/60 hover:bg-white/80"
+                }`}
+                aria-label={`Aller à la bannière ${idx + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 // Composant ProductCard
 function ProductCard({ product }: { product: any }) {
@@ -31,13 +202,16 @@ function ProductCard({ product }: { product: any }) {
         {/* Image Container */}
         <div className="relative h-72 bg-[oklch(0.97_0.003_65)] overflow-hidden">
           <img
-            src={product.previewImageUrl}
+            src={product.previewImageUrl || "https://placehold.co/600x800/eee/ddd?text=Produit"}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
           
           {/* Badges - VINA Colors */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {product.salePrice != null && Number(product.salePrice) > 0 && (
+              <span className="bg-red-600 text-white text-xs font-bold px-3 py-1">Soldes</span>
+            )}
             {product.isFeatured && (
               <span className="bg-[#8c8070] text-white text-xs font-bold px-3 py-1 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> Vedette
@@ -77,9 +251,16 @@ function ProductCard({ product }: { product: any }) {
             <span className="text-xs text-[oklch(0.55_0.016_65)]">({product.downloads || 0})</span>
           </div>
           
-          {/* Price - VINA Colors */}
+          {/* Price - VINA Colors (prix soldé si présent) */}
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-[#8c8070]">{product.price} DT</span>
+            {product.salePrice != null && Number(product.salePrice) > 0 ? (
+              <>
+                <span className="text-sm text-gray-500 line-through">{product.price} DT</span>
+                <span className="text-lg font-bold text-[#8c8070]">{product.salePrice} DT</span>
+              </>
+            ) : (
+              <span className="text-lg font-bold text-[#8c8070]">{product.price} DT</span>
+            )}
           </div>
         </div>
       </div>
@@ -88,6 +269,7 @@ function ProductCard({ product }: { product: any }) {
 }
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -95,23 +277,54 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-  // Récupération des produits depuis l'API
+  // Récupération des produits et bannières depuis l'API
   const productsQuery = trpc.products.list.useQuery({ limit: 100, offset: 0 });
   const featuredQuery = trpc.products.getFeatured.useQuery({ limit: 8 });
+  const bannersQuery = trpc.banners.list.useQuery();
+  const banners = bannersQuery.data ?? [];
 
-  // Filtrer les produits par catégorie et recherche
+  // Groupes de catégories backend (Femme, Homme, Accessoires, Enfant)
+  const categoryGroups: Record<string, string[]> = {
+    women: ["women", "dresses", "sportswear", "accessories"],
+    men: ["men", "suits", "sportswear", "accessories"],
+    accessories: ["accessories", "shoes", "bags", "jewelry"],
+    children: ["children"],
+  };
+
+  const NEW_DAYS = 30;
+  const now = Date.now();
+
+  // Filtrer les produits par catégorie, sous-catégorie, soldes, nouveautés et recherche
   const filteredProducts = useMemo(() => {
     if (!productsQuery.data) return [];
-    
-    return productsQuery.data.filter(p => {
-      const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
-      const matchesSearch = searchQuery === "" || 
+    return productsQuery.data.filter((p) => {
+      let matchesCategory = true;
+      if (selectedCategory === "all") matchesCategory = true;
+      else if (selectedCategory === "sales") matchesCategory = p.salePrice != null && Number(p.salePrice) > 0;
+      else if (selectedCategory === "new") {
+        const created = (p as { createdAt?: string | Date }).createdAt;
+        if (!created) matchesCategory = false;
+        else matchesCategory = (now - new Date(created).getTime()) / (1000 * 60 * 60 * 24) <= NEW_DAYS;
+      } else {
+        const group = categoryGroups[selectedCategory];
+        if (group) {
+          if (selectedSubcategory === "all" || !selectedSubcategory) matchesCategory = group.includes(p.category);
+          else matchesCategory = p.category === selectedSubcategory;
+        } else matchesCategory = p.category === selectedCategory;
+      }
+      const matchesSearch =
+        searchQuery === "" ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      
       return matchesCategory && matchesSearch;
     });
-  }, [productsQuery.data, selectedCategory, searchQuery]);
+  }, [productsQuery.data, selectedCategory, selectedSubcategory, searchQuery]);
+
+  // Articles en solde (pour la section dédiée)
+  const saleProducts = useMemo(
+    () => (productsQuery.data ?? []).filter((p) => p.salePrice != null && Number(p.salePrice) > 0),
+    [productsQuery.data]
+  );
 
   // Produits vedettes
   const featuredProducts = featuredQuery.data || [];
@@ -229,7 +442,10 @@ export default function Home() {
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
                   <button
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => {
+                      setSelectedCategory(cat.id);
+                      setSelectedSubcategory("all");
+                    }}
                     className={`px-5 py-4 whitespace-nowrap font-medium transition-all border-b-3 ${
                       selectedCategory === cat.id
                         ? "text-[#8c8070] border-b-[#8c8070] bg-[oklch(0.97_0.003_65)]"
@@ -244,27 +460,31 @@ export default function Home() {
                     )}
                   </button>
                   
-                  {/* Dropdown Menu - Style mabrouk.tn */}
+                  {/* Dropdown sous-catégories */}
                   {cat.subcategories.length > 0 && activeDropdown === cat.id && (
                     <div className="absolute left-0 top-full bg-white shadow-xl border border-[#c8bfb0] min-w-48 z-50">
                       <div className="py-2">
                         <button
                           onClick={() => {
                             setSelectedCategory(cat.id);
+                            setSelectedSubcategory("all");
+                            setActiveDropdown(null);
                           }}
                           className="w-full text-left px-4 py-2 hover:bg-[oklch(0.97_0.003_65)] text-[oklch(0.35_0.02_65)] font-medium"
                         >
-                          Voir tout
+                          Tout
                         </button>
                         {cat.subcategories.map((sub) => (
                           <button
-                            key={sub}
+                            key={sub.id}
                             onClick={() => {
                               setSelectedCategory(cat.id);
+                              setSelectedSubcategory(sub.id);
+                              setActiveDropdown(null);
                             }}
                             className="w-full text-left px-4 py-2 hover:bg-[oklch(0.97_0.003_65)] text-[oklch(0.55_0.016_65)]"
                           >
-                            {sub}
+                            {sub.label}
                           </button>
                         ))}
                       </div>
@@ -287,6 +507,7 @@ export default function Home() {
                   key={cat.id}
                   onClick={() => {
                     setSelectedCategory(cat.id);
+                    setSelectedSubcategory("all");
                     setIsMobileMenuOpen(false);
                   }}
                   className={`p-3 rounded-none text-left font-medium transition-all ${
@@ -308,11 +529,13 @@ export default function Home() {
                 <div className="flex flex-wrap gap-2">
                   {CATEGORIES.find(c => c.id === selectedCategory)?.subcategories.map((sub) => (
                     <button
-                      key={sub}
-                      onClick={() => setSelectedSubcategory(sub.toLowerCase())}
-                      className="px-3 py-1 text-sm bg-[oklch(0.97_0.003_65)] text-[oklch(0.35_0.02_65)] rounded-full hover:bg-[#8c8070] hover:text-white transition-colors"
+                      key={sub.id}
+                      onClick={() => setSelectedSubcategory(sub.id)}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        selectedSubcategory === sub.id ? "bg-[#8c8070] text-white" : "bg-[oklch(0.97_0.003_65)] text-[oklch(0.35_0.02_65)] hover:bg-[#8c8070] hover:text-white"
+                      }`}
                     >
-                      {sub}
+                      {sub.label}
                     </button>
                   ))}
                 </div>
@@ -322,43 +545,59 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section - VINA Colors */}
-      <section className="relative bg-gradient-to-r from-[#8c8070] to-[#b4aa9b] text-white py-16 md:py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="container px-4 relative">
-          <div className="max-w-2xl">
-            <span className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium mb-4">
-              Collection 2024
-            </span>
-            <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight" style={{ fontFamily: 'Playfair Display, serif' }}>
-              Élégance & Style<br />
-              <span className="text-[#f5f2ee]">Pour Tous</span>
-            </h1>
-            <p className="text-lg md:text-xl mb-8 opacity-90">
-              Découvrez notre nouvelle collection de vêtements et accessoires pour homme, femme et enfant. Qualité premium, prix incontournables.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                className="bg-white text-[#8c8070] hover:bg-[#f5f2ee] px-8 py-3 text-lg font-semibold rounded-none"
-                onClick={() => setSelectedCategory("women")}
-              >
-                Découvrir la collection
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-2 border-white text-white hover:bg-white/20 px-8 py-3 text-lg font-semibold rounded-none"
-                onClick={() => setSelectedCategory("all")}
-              >
-                Voir tous les produits
-              </Button>
+      {/* Notification promotions */}
+      {saleProducts.length > 0 && (
+        <div className="bg-red-600 text-white text-center py-2 px-4 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => { setSelectedCategory("sales"); setSelectedSubcategory("all"); }}
+            className="underline hover:no-underline"
+          >
+            🔥 Promotions en cours — {saleProducts.length} article(s) en solde. Cliquez pour voir les offres.
+          </button>
+        </div>
+      )}
+
+      {/* Bannières slider (rotation 3–5 s, flèches, dots, lazy loading) */}
+      {banners.length > 0 ? (
+        <BannerSlider banners={banners} />
+      ) : (
+        <section className="relative bg-gradient-to-r from-[#8c8070] to-[#b4aa9b] text-white py-16 md:py-24 overflow-hidden">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="container px-4 relative">
+            <div className="max-w-2xl">
+              <span className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium mb-4">
+                Collection 2024
+              </span>
+              <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight" style={{ fontFamily: 'Playfair Display, serif' }}>
+                Élégance & Style<br />
+                <span className="text-[#f5f2ee]">Pour Tous</span>
+              </h1>
+              <p className="text-lg md:text-xl mb-8 opacity-90">
+                Découvrez notre nouvelle collection de vêtements et accessoires pour homme, femme et enfant. Qualité premium, prix incontournables.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  className="bg-white text-[#8c8070] hover:bg-[#f5f2ee] px-8 py-3 text-lg font-semibold rounded-none"
+                  onClick={() => setSelectedCategory("women")}
+                >
+                  Découvrir la collection
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="border-2 border-white text-white hover:bg-white/20 px-8 py-3 text-lg font-semibold rounded-none"
+                  onClick={() => setSelectedCategory("all")}
+                >
+                  Voir tous les produits
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-        {/* Decorative elements */}
-        <div className="absolute right-0 top-1/2 transform -translate-y-1/2 hidden lg:block">
-          <div className="w-96 h-96 bg-white/10 rounded-full"></div>
-        </div>
-      </section>
+          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 hidden lg:block">
+            <div className="w-96 h-96 bg-white/10 rounded-full"></div>
+          </div>
+        </section>
+      )}
 
       {/* Categories Tabs - Mobile */}
       <section className="md:hidden bg-white py-4 sticky top-16 z-40 shadow-sm">
@@ -367,7 +606,10 @@ export default function Home() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  setSelectedSubcategory("all");
+                }}
                 className={`px-4 py-2 whitespace-nowrap font-medium text-sm transition-all ${
                   selectedCategory === cat.id
                     ? "bg-[#8c8070] text-white"
@@ -379,8 +621,37 @@ export default function Home() {
               </button>
             ))}
           </div>
+          {/* Sous-catégories (affichées sous les onglets quand Femme, Homme, Accessoires ou Enfant est sélectionné) */}
+          {(() => {
+            const cat = CATEGORIES.find((c) => c.id === selectedCategory);
+            if (!cat || cat.subcategories.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-[#c8bfb0] mt-3">
+                {cat.subcategories.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setSelectedSubcategory(sub.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedSubcategory === sub.id
+                        ? "bg-[#8c8070] text-white"
+                        : "bg-[oklch(0.97_0.003_65)] text-[oklch(0.35_0.02_65)] hover:bg-[#b4aa9b]/30"
+                    }`}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </section>
+
+      {/* Bannière personnalisée pour le filtre sélectionné (catégorie/sous-catégorie) */}
+      {selectedCategory && selectedCategory !== "all" && selectedCategory !== "sales" && selectedCategory !== "new" && (
+        <FilterBanner
+          pageIdentifier={selectedSubcategory !== "all" ? selectedSubcategory : selectedCategory}
+        />
+      )}
 
       {/* Main Products Section */}
       <section className="py-8 md:py-12">
@@ -389,7 +660,18 @@ export default function Home() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-[oklch(0.35_0.02_65)]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                {selectedCategory === "all" ? "Tous nos produits" : CATEGORIES.find(c => c.id === selectedCategory)?.label}
+                {selectedCategory === "all"
+                ? "Tous nos produits"
+                : selectedCategory === "sales"
+                  ? "Soldes"
+                  : selectedCategory === "new"
+                    ? "Nouveaux produits"
+                    : (() => {
+                        const cat = CATEGORIES.find((c) => c.id === selectedCategory);
+                        const sub = cat?.subcategories.find((s) => s.id === selectedSubcategory);
+                        if (sub && selectedSubcategory !== "all") return `${cat?.label ?? ""} › ${sub.label}`;
+                        return cat?.label ?? selectedCategory;
+                      })()}
               </h2>
               <p className="text-[oklch(0.55_0.016_65)] mt-1">{filteredProducts.length} produits</p>
             </div>
@@ -435,6 +717,31 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Articles en solde — intégration automatique */}
+      {!isLoading && saleProducts.length > 0 && selectedCategory !== "sales" && (
+        <section className="py-8 md:py-12 bg-[oklch(0.97_0.003_65)] border-t border-[#c8bfb0]">
+          <div className="container px-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-[oklch(0.35_0.02_65)]" style={{ fontFamily: "Playfair Display, serif" }}>
+                Articles en solde
+              </h2>
+              <Button
+                variant="outline"
+                className="border-[#8c8070] text-[#8c8070] hover:bg-[#8c8070] hover:text-white"
+                onClick={() => { setSelectedCategory("sales"); setSelectedSubcategory("all"); }}
+              >
+                Voir tout <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {saleProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Products Section */}
       {!isLoading && featuredProducts.length > 0 && (

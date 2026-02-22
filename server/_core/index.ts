@@ -2,11 +2,30 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import * as db from "../db";
+
+function getProjectRoot(): string {
+  if (process.env.NODE_ENV === "production") {
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, "dist", "index.js"))) return cwd;
+    if (fs.existsSync(path.join(cwd, "dist", "public"))) return cwd;
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(__dirname, "..");
+  }
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(__dirname, "../..");
+}
+const projectRoot = getProjectRoot();
+const uploadsPath = path.join(projectRoot, "uploads");
+if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -18,7 +37,7 @@ function isPortAvailable(port: number): Promise<boolean> {
   });
 }
 
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
+async function findAvailablePort(startPort: number = 10000): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
     if (await isPortAvailable(port)) {
       return port;
@@ -30,9 +49,23 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  // CORS : autoriser l’admin (autre port en dev) et le site à appeler l’API
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Fichiers uploadés (produits, bannières, paramètres)
+  app.use("/uploads", express.static(uploadsPath));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API
@@ -50,11 +83,21 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  const preferredPort = parseInt(process.env.PORT || "10000");
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+  }
+
+  try {
+    await db.ensureUsersPasswordHashColumn();
+    await db.ensureBannersAndSettingsTables();
+    await db.ensureFirstAdmin();
+    await db.ensureProductsCategoryEnum();
+    await db.ensureSeedData();
+  } catch (e) {
+    console.warn("[Server] startup seed:", e);
   }
 
   server.listen(port, () => {
